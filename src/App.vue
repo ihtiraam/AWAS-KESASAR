@@ -5,8 +5,9 @@
       <h1>AWAS KESASAR</h1>
     </header>
 
-    <div class="search-row">
+    <div class="search-row"> 
       <div class="search-box has-options">
+        <i class="bi bi-geo-alt search-icon"></i>
         <input
           type="search"
           v-model="fromText"
@@ -32,6 +33,7 @@
 
       <transition name="slideDown">
         <div class="search-box has-swap" v-if="startId">
+          <i class="bi bi-geo-alt-fill search-icon search-icon-to"></i>
           <input
             type="search"
             v-model="toText"
@@ -62,8 +64,7 @@
     <main class="main">
       <div class="floor-container">
         <FloorPlan
-          :areas="areas"
-          :corridors="corridors"
+          ref="floorPlanRef"
           :start-id="startId"
           :end-id="endId"
         />
@@ -77,25 +78,23 @@
 
       <h2 class="nav-title">MODE NAVIGASI</h2>
 
-<div class="route-modes">
+      <div class="route-modes">
+        <button
+          class="route-mode-btn"
+          :class="{ active: selectedRouteMode === 'avoidStairs' }"
+          @click="setNavMode('avoidStairs')"
+        >
+          Hindari Tangga
+        </button>
 
-  <button
-    class="route-mode-btn"
-    :class="{ active: selectedRouteMode === 'avoidStairs' }"
-    @click="setNavMode('avoidStairs')"
-  >
-    Hindari Tangga
-  </button>
-
-  <button
-    class="route-mode-btn"
-    :class="{ active: selectedRouteMode === 'avoidElevator' }"
-    @click="setNavMode('avoidElevator')"
-  >
-    Hindari Lift
-  </button>
-</div>
-
+        <button
+          class="route-mode-btn"
+          :class="{ active: selectedRouteMode === 'avoidElevator' }"
+          @click="setNavMode('avoidElevator')"
+        >
+          Hindari Lift
+        </button>
+      </div>
     </footer>
 
     <div v-if="showPopup" class="popup-overlay" @click.self="closePopup">
@@ -112,8 +111,10 @@
 <script setup lang="ts">
 import { ref, computed, nextTick } from 'vue'
 import FloorPlan from './components/FloorPlan.vue'
-import { areas_floor1, corridors_floor1 } from './components/maps'
-import type { Area } from './types/Area'
+import 'bootstrap-icons/font/bootstrap-icons.css'
+
+
+const floorPlanRef = ref<InstanceType<typeof FloorPlan> | null>(null)
 
 const startId = ref<string | null>(null)
 const endId = ref<string | null>(null)
@@ -121,9 +122,6 @@ const endId = ref<string | null>(null)
 const fromText = ref('')
 const toText = ref('')
 const toInputRef = ref<HTMLInputElement | null>(null)
-
-const areas: Area[] = areas_floor1
-const corridors = corridors_floor1
 
 const showFromSuggestions = ref(false)
 const showToSuggestions = ref(false)
@@ -135,15 +133,21 @@ const popupMessage = ref("")
 
 const showRouteMode = ref(false)
 const routeMode = ref<'biasa' | 'cepat'>('biasa')
-
 const selectedRouteMode = ref<'normal' | 'avoidStairs' | 'avoidElevator'>('normal')
 
+const allLocations = ref<{ id: string, name: string }[]>([])
+nextTick(() => {
+  if (floorPlanRef.value) {
+    allLocations.value = floorPlanRef.value.locations
+  }
+})
+
 const filteredFrom = computed(() =>
-  areas.filter(a => a.name.toLowerCase().includes(fromText.value.toLowerCase()))
+  allLocations.value.filter(a => a.name.toLowerCase().includes(fromText.value.toLowerCase()))
 )
 
 const filteredTo = computed(() =>
-  areas.filter(a => a.name.toLowerCase().includes(toText.value.toLowerCase()))
+  allLocations.value.filter(a => a.name.toLowerCase().includes(toText.value.toLowerCase()))
 )
 
 function onFromInput() {
@@ -166,7 +170,7 @@ function hideToSuggestionsDelayed() {
   hideToTimeout = window.setTimeout(() => (showToSuggestions.value = false), 150)
 }
 
-function chooseFrom(a: Pick<Area, 'id' | 'name'>) {
+function chooseFrom(a: { id: string, name: string }) {
   fromText.value = a.name
   startId.value = a.id
   toText.value = ''
@@ -176,7 +180,7 @@ function chooseFrom(a: Pick<Area, 'id' | 'name'>) {
   if (hideFromTimeout) clearTimeout(hideFromTimeout)
 }
 
-function chooseTo(a: Pick<Area, 'id' | 'name'>) {
+function chooseTo(a: { id: string, name: string }) {
   toText.value = a.name
   endId.value = a.id
   showToSuggestions.value = false
@@ -186,10 +190,8 @@ function chooseTo(a: Pick<Area, 'id' | 'name'>) {
 function swapRoute() {
   const id = startId.value
   const txt = fromText.value
-
   startId.value = endId.value
   endId.value = id
-
   fromText.value = toText.value
   toText.value = txt
 }
@@ -205,11 +207,8 @@ function setRouteMode(mode: 'biasa' | 'cepat') {
 }
 
 function setNavMode(mode: 'normal' | 'avoidStairs' | 'avoidElevator') {
-  if (selectedRouteMode.value === mode) {
-    selectedRouteMode.value = 'normal'
-  } else {
-    selectedRouteMode.value = mode
-  }
+  if (selectedRouteMode.value === mode) selectedRouteMode.value = 'normal'
+  else selectedRouteMode.value = mode
   console.log("Mode navigasi:", selectedRouteMode.value)
 }
 
@@ -279,6 +278,32 @@ function closePopup() {
   outline: none;
   border-color: #19c0d2;
 }
+.search-box .search-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 22px;
+  color: #19c0d2;
+  pointer-events: none;
+}
+.search-box.has-swap .search-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 22px;
+  color: #0fa7bd;
+  pointer-events: none;
+}
+.has-options input {
+  padding-left: 40px !important; 
+  padding-right: 40px !important; 
+}
+.has-swap input {
+  padding-left: 40px !important; 
+  padding-right: 40px !important; 
+}
 .suggestions {
   list-style: none;
   margin: 0;
@@ -335,9 +360,6 @@ function closePopup() {
 }
 .options-btn:active {
   transform: translateY(-50%) scale(0.92);
-}
-.has-options input {
-  padding-right: 40px !important;
 }
 .route-mode-dropdown {
   list-style: none;
